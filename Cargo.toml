@@ -1,0 +1,19 @@
+[package]
+name = "lift_with_me"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.66"
+authors = ["Dan Dixey <dan.dixey@gmail.com>"]
+description = "Lift With Me - A Modern Elevator system"
+
+[dependencies]
+axum = "0.6"
+log = "0.4"
+serde_json = "1.0"
+tokio = { version = "1.24", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+[[bin]]
+name = "lift_with_me"
+path = "src/bin/main.rs"
