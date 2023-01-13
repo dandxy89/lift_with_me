@@ -6,9 +6,9 @@ use crate::model::operation::Command;
 pub async fn internal_timer(tx: Sender<Command>) {
     loop {
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        tx.send(Command::Tick).expect("tick to be sent");
+        tx.send(Command::Tick).expect("to be sent");
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        tx.send(Command::LocationStatus).expect("status to be sent");
+        tx.send(Command::RequestLocation).expect("to be sent");
     }
 }
 

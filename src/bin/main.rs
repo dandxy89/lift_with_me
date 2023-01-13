@@ -1,31 +1,20 @@
-use std::net::SocketAddr;
-
-use axum::{routing::get, Router};
-use lift_with_me::{
-    model::{
-        elevator::add_lift,
-        operation::{Command, LocationStatus},
-    },
-    routes::heath::health,
-    ticker::{display_ticks, internal_timer},
+use std::{
+    collections::HashMap,
+    net::SocketAddr,
+    sync::{Arc, Mutex},
 };
-use tokio::sync::broadcast::{self, Receiver, Sender};
 
-async fn task_scheduler(
-    n_elevators: u8,
-    mut status: Receiver<LocationStatus>,
-    _elevator_job_tx: Sender<Command>,
-) {
-    let mut avaliable_for_work = vec![(true, 0); n_elevators as usize];
-    loop {
-        tokio::select! {
-            Ok(loc_stat) = status.recv() => {
-                tracing::info!("Updating status for [{}] on floor [{}]", loc_stat.id, loc_stat.floor);
-                avaliable_for_work[loc_stat.id as usize] = (loc_stat.is_busy, loc_stat.floor);
-            }
-        }
-    }
-}
+use axum::{
+    routing::{get, post},
+    Router,
+};
+use lift_with_me::{
+    model::elevator::{add_lift, create_lift},
+    routes::heath::health,
+    scheduler::task_scheduler,
+    ticker::{display_ticks, internal_timer},
+    AppState,
+};
 
 #[tokio::main]
 async fn main() {
@@ -39,41 +28,43 @@ async fn main() {
         .finish();
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
-    let n_elevators = 2;
+    // "App State"
+    let app_state: AppState = Arc::new(Mutex::new(HashMap::new()));
+    let n_elevators = 1;
 
     // Broadcasting ticks - fake moving through time...
-    let (tx, _rx) = broadcast::channel(32);
-    let (tx_s, rx_s) = broadcast::channel::<LocationStatus>(32);
+    let (tx, _rx) = tokio::sync::broadcast::channel(32);
 
     // Task Scheduler
     let tx_new = tx.clone();
-    tokio::spawn(async move { task_scheduler(n_elevators, rx_s, tx_new).await });
+    let app_state1 = app_state.clone();
+    tokio::spawn(async move { task_scheduler(tx_new.subscribe(), app_state1).await });
 
     // Create some elevators
     for elevator_id in 0..n_elevators {
-        let rx_new = tx.subscribe();
-        let tx_new = tx_s.clone();
-        tokio::spawn(async move { add_lift(elevator_id, rx_new, tx_new).await });
+        let tx_new = tx.clone();
+        tokio::spawn(async move { add_lift(elevator_id, tx_new).await });
     }
 
     // Start the Clock
     let rx2 = tx.subscribe();
-    let _clock = tokio::spawn(async move { internal_timer(tx).await });
+    let tx_new = tx.clone();
+    let _clock = tokio::spawn(async move { internal_timer(tx_new).await });
     let _listen = tokio::spawn(async move { display_ticks(rx2).await });
 
     // build our application with a route
     let app = Router::new()
         // `GET /status
-        .route("/status", get(health));
+        .route("/status", get(health))
+        // `POST /elevator/register/:id
+        .route("/elevator/register/:id", post(create_lift))
+        // Command Transmitter
+        .with_state(tx.clone());
+
     // TODO
-    // Get the Current Status of an Elevator
-    //  `GET /elevator/status/{ID}
-    //  `GET /elevator/status
     // Add requests to Elevator Queues
     //  `POST /request
     //  `POST /request/{ID}
-    // Register a new Elevator for Work
-    //  `POST /elevator/register
 
     // run our app with hyper
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));

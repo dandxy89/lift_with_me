@@ -1,20 +1,28 @@
 use std::collections::VecDeque;
 
 use crate::model::operation::{Command, LocationStatus, Movement};
-use tokio::sync::broadcast::{Receiver, Sender};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    Json,
+};
+use serde_json::json;
+use tokio::sync::broadcast::Sender;
 
 /// Creates a new Elevator
-pub async fn add_lift(id: u8, mut cmd_rx: Receiver<Command>, status_tx: Sender<LocationStatus>) {
+pub async fn add_lift(id: u8, cmd_tx: Sender<Command>) {
     let mut lift = Elevator::new(id, 10);
     lift.add_request(Movement::ReturnHome);
     tracing::info!("Creating new Lift with Id=[{}]", id);
+    let mut cmd_rx = cmd_tx.subscribe();
 
     while let Ok(cmd) = cmd_rx.recv().await {
         match cmd {
             Command::Tick => lift.tick(),
-            Command::LocationStatus => {
+            Command::RequestLocation => {
                 let current_status = lift.location_status();
-                if let Err(e) = status_tx.send(current_status) {
+                if let Err(e) = cmd_tx.send(Command::SendLocation(current_status)) {
                     tracing::error!("Unable to send status due to [{e}]");
                 }
             }
@@ -23,8 +31,18 @@ pub async fn add_lift(id: u8, mut cmd_rx: Receiver<Command>, status_tx: Sender<L
                     lift.add_request(request);
                 }
             }
+            Command::SendLocation(_) | Command::Register(_) => (),
         }
     }
+}
+
+/// Register a new `Elevator` for Work -`POST /elevator/register/:id`
+pub async fn create_lift(
+    Path(id): Path<u8>,
+    State(cmd_tx): State<Sender<Command>>,
+) -> impl IntoResponse {
+    tokio::spawn(async move { add_lift(id, cmd_tx).await });
+    (StatusCode::CREATED, Json(json!({})))
 }
 
 #[derive(Debug)]

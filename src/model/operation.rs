@@ -1,8 +1,10 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     Tick,
-    LocationStatus,
+    RequestLocation,
+    SendLocation(LocationStatus),
     Lift(u8, Movement),
+    Register(LocationStatus),
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
