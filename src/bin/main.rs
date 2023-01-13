@@ -1,20 +1,20 @@
-use std::{
-    collections::HashMap,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use axum::{
     routing::{get, post},
-    Router,
+    Extension, Router,
 };
 use lift_with_me::{
-    model::elevator::{add_lift, create_lift},
-    routes::heath::health,
+    routes::{
+        heath::health,
+        lift::{attach_elevator, passenger_request},
+        status::{get_current_status_all, get_lift_status},
+    },
     scheduler::task_scheduler,
-    ticker::{display_ticks, internal_timer},
+    ticker::internal_ticking,
     AppState,
 };
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
@@ -30,47 +30,37 @@ async fn main() {
 
     // "App State"
     let app_state: AppState = Arc::new(Mutex::new(HashMap::new()));
-    let n_elevators = 1;
 
     // Broadcasting ticks - fake moving through time...
-    let (tx, _rx) = tokio::sync::broadcast::channel(32);
+    let (tx, _) = tokio::sync::broadcast::channel(32);
 
     // Task Scheduler
     let tx_new = tx.clone();
     let app_state1 = app_state.clone();
     tokio::spawn(async move { task_scheduler(tx_new.subscribe(), app_state1).await });
 
-    // Create some elevators
-    for elevator_id in 0..n_elevators {
-        let tx_new = tx.clone();
-        tokio::spawn(async move { add_lift(elevator_id, tx_new).await });
-    }
-
     // Start the Clock
-    let rx2 = tx.subscribe();
     let tx_new = tx.clone();
-    let _clock = tokio::spawn(async move { internal_timer(tx_new).await });
-    let _listen = tokio::spawn(async move { display_ticks(rx2).await });
+    let clock = tokio::spawn(async move { internal_ticking(tx_new).await });
+    // let rx2 = tx.subscribe();
+    // let _listen = tokio::spawn(async move { display_ticks(rx2).await });
 
-    // build our application with a route
+    // Define a Router
     let app = Router::new()
-        // `GET /status
         .route("/status", get(health))
-        // `POST /elevator/register/:id
-        .route("/elevator/register/:id", post(create_lift))
-        // Command Transmitter
-        .with_state(tx.clone());
+        .route("/elevator/register/:id", post(attach_elevator))
+        .route("/elevator/request", post(passenger_request))
+        .route("/elevator/status", get(get_current_status_all))
+        .route("/elevator/status/:id", post(get_lift_status))
+        .layer(Extension(app_state))
+        .with_state(tx);
 
-    // TODO
-    // Add requests to Elevator Queues
-    //  `POST /request
-    //  `POST /request/{ID}
-
-    // run our app with hyper
+    // Run our app with hyper
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     tracing::debug!("listening on {}", addr);
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
         .unwrap();
+    clock.abort();
 }

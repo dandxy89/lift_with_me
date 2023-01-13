@@ -9,6 +9,7 @@ description = "Lift With Me - A Modern Elevator system"
 [dependencies]
 axum = "0.6"
 log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.24", features = ["full"] }
 tracing = "0.1"

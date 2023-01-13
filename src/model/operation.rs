@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     Tick,
@@ -21,7 +23,18 @@ pub enum Movement {
     CloseDoor,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+impl Movement {
+    #[must_use]
+    pub fn get_direction(to_floor: i16, from_floor: i16) -> Option<Self> {
+        match to_floor - from_floor {
+            v if v < 0 => Some(Movement::Down(from_floor, to_floor)),
+            v if v > 0 => Some(Movement::Up(from_floor, to_floor)),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct LocationStatus {
     pub id: u8,
     pub is_busy: bool,
@@ -37,4 +50,10 @@ impl LocationStatus {
             floor: current_floor,
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize)]
+pub struct Passenger {
+    pub from_floor: i16,
+    pub to_floor: i16,
 }

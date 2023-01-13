@@ -15,5 +15,6 @@ In Rust!
 # TODO List
 
 - Implement Routes
-- Add PostMan Collection
 - Experiment with Tokio Console
+- Use [Tokio Console](https://github.com/tokio-rs/console)
+

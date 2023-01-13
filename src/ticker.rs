@@ -3,11 +3,11 @@ use tokio::sync::broadcast::{Receiver, Sender};
 use crate::model::operation::Command;
 
 /// Interval timer
-pub async fn internal_timer(tx: Sender<Command>) {
+pub async fn internal_ticking(tx: Sender<Command>) {
     loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         tx.send(Command::Tick).expect("to be sent");
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         tx.send(Command::RequestLocation).expect("to be sent");
     }
 }

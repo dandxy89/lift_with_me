@@ -30,7 +30,7 @@
 				"method": "POST",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:3000/elevator/register/2",
+					"raw": "http://localhost:3000/elevator/register/0",
 					"protocol": "http",
 					"host": [
 						"localhost"
@@ -39,7 +39,77 @@
 					"path": [
 						"elevator",
 						"register",
-						"2"
+						"0"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Lift Status by Id",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/elevator/status/0",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"elevator",
+						"status",
+						"0"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Lift Status (All)",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:3000/elevator/status",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"elevator",
+						"status"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Request Lift",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"from_floor\": 0,\n    \"to_floor\": 20\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:3000/elevator/request",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "3000",
+					"path": [
+						"elevator",
+						"request"
 					]
 				}
 			},

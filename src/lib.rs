@@ -4,10 +4,8 @@
 #![deny(clippy::all)]
 #![deny(clippy::pedantic)]
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::Mutex;
 
 pub mod model;
 pub mod routes;

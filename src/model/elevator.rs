@@ -1,20 +1,18 @@
 use std::collections::VecDeque;
 
 use crate::model::operation::{Command, LocationStatus, Movement};
-use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-    Json,
-};
-use serde_json::json;
 use tokio::sync::broadcast::Sender;
 
 /// Creates a new Elevator
+///
+/// # Panics
 pub async fn add_lift(id: u8, cmd_tx: Sender<Command>) {
     let mut lift = Elevator::new(id, 10);
     lift.add_request(Movement::ReturnHome);
     tracing::info!("Creating new Lift with Id=[{}]", id);
+    if let Err(e) = cmd_tx.send(Command::Register(LocationStatus::new(id, true, 10))) {
+        tracing::error!("Enable to Register Lift[{id})] due to [{e}]");
+    };
     let mut cmd_rx = cmd_tx.subscribe();
 
     while let Ok(cmd) = cmd_rx.recv().await {
@@ -36,15 +34,6 @@ pub async fn add_lift(id: u8, cmd_tx: Sender<Command>) {
     }
 }
 
-/// Register a new `Elevator` for Work -`POST /elevator/register/:id`
-pub async fn create_lift(
-    Path(id): Path<u8>,
-    State(cmd_tx): State<Sender<Command>>,
-) -> impl IntoResponse {
-    tokio::spawn(async move { add_lift(id, cmd_tx).await });
-    (StatusCode::CREATED, Json(json!({})))
-}
-
 #[derive(Debug)]
 pub struct Elevator {
     id: u8,
@@ -55,7 +44,7 @@ pub struct Elevator {
 
 impl Elevator {
     #[must_use]
-    /// Initalisation method to create a new Elevator
+    /// Initialisation method to create a new Elevator
     pub fn new(id: u8, starting_floor: i16) -> Self {
         Self {
             id,
@@ -74,9 +63,7 @@ impl Elevator {
 
     /// Add a new Movement request to the Elevator work queue
     pub fn add_request(&mut self, request: Movement) {
-        if request != Movement::Idle {
-            self.work.push_back(request);
-        }
+        self.work.push_back(request);
     }
 
     /// Tick through time

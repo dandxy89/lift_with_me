@@ -1,5 +1,6 @@
 use crate::model::operation::Command;
 use crate::AppState;
+
 use tokio::sync::broadcast::Receiver;
 
 #[allow(clippy::module_name_repetitions)]
@@ -10,11 +11,11 @@ pub async fn task_scheduler(mut lift_job_rx: Receiver<Command>, app_state: AppSt
             Ok(cmd) = lift_job_rx.recv() => {
                 match cmd {
                     Command::SendLocation(loc_stat) => {
-                        tracing::info!("Updating status for [{}] on floor [{}]", loc_stat.id, loc_stat.floor);
+                        tracing::debug!("Updating status of Lift=[{}]", loc_stat.id);
                         {
                             app_state
                                 .lock()
-                                .unwrap()
+                                .await
                                 .entry(loc_stat.id)
                                 .and_modify(|e| {
                                     *e = (loc_stat.is_busy, loc_stat.floor);
@@ -22,10 +23,11 @@ pub async fn task_scheduler(mut lift_job_rx: Receiver<Command>, app_state: AppSt
                         }
                     }
                     Command::Register(loc_stat) => {
+                        tracing::info!("Registering Lift=[{}]", loc_stat.id);
                         {
                             app_state
                                 .lock()
-                                .unwrap()
+                                .await
                                 .entry(loc_stat.id)
                                 .or_insert_with(|| (loc_stat.is_busy, loc_stat.floor));
                         }
