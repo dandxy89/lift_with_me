@@ -7,9 +7,11 @@
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
 
+use crate::model::operation::LocationStatus;
+
 pub mod model;
 pub mod routes;
 pub mod scheduler;
 pub mod ticker;
 
-pub type AppState = Arc<Mutex<HashMap<u8, (bool, i16)>>>;
+pub type AppState = Arc<Mutex<HashMap<u8, LocationStatus>>>;

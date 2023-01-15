@@ -1,4 +1,7 @@
 use serde::{Deserialize, Serialize};
+use tokio::sync::broadcast::Sender;
+
+use crate::model::elevator::Elevator;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
@@ -56,4 +59,35 @@ impl LocationStatus {
 pub struct Passenger {
     pub from_floor: i16,
     pub to_floor: i16,
+}
+
+/// Creates a new Elevator
+///
+/// # Panics
+pub async fn add_lift(id: u8, cmd_tx: Sender<Command>) {
+    let mut lift = Elevator::new(id, 10);
+    lift.add_request(Movement::ReturnHome);
+    tracing::info!("Creating new Lift with Id=[{}]", id);
+    if let Err(e) = cmd_tx.send(Command::Register(LocationStatus::new(id, true, 10))) {
+        tracing::error!("Enable to Register Lift[{id})] due to [{e}]");
+    };
+    let mut cmd_rx = cmd_tx.subscribe();
+
+    while let Ok(cmd) = cmd_rx.recv().await {
+        match cmd {
+            Command::Tick => lift.tick(),
+            Command::RequestLocation => {
+                let current_status = lift.location_status();
+                if let Err(e) = cmd_tx.send(Command::SendLocation(current_status)) {
+                    tracing::error!("Unable to send status due to [{e}]");
+                }
+            }
+            Command::Lift(lift_id, request) => {
+                if lift_id == id {
+                    lift.add_request(request);
+                }
+            }
+            Command::SendLocation(_) | Command::Register(_) => (),
+        }
+    }
 }

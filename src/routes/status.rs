@@ -16,7 +16,7 @@ pub async fn get_current_status_all(Extension(db): Extension<AppState>) -> impl 
         .lock()
         .await
         .iter()
-        .map(|(k, (b, f))| LocationStatus::new(*k, *b, *f))
+        .map(|(k, loc_stat)| LocationStatus::new(*k, loc_stat.is_busy, loc_stat.floor))
         .collect();
     (StatusCode::OK, Json(json!(payload)))
 }
@@ -27,8 +27,8 @@ pub async fn get_lift_status(
     Path(id): Path<u8>,
     Extension(db): Extension<AppState>,
 ) -> impl IntoResponse {
-    if let Some((is_busy, current_floor)) = db.lock().await.get(&id) {
-        let payload = json!({"current_floor": current_floor, "is_busy": is_busy});
+    if let Some(loc_stat) = db.lock().await.get(&id) {
+        let payload = json!({"current_floor": loc_stat.floor, "is_busy": loc_stat.is_busy});
         (StatusCode::OK, Json(payload))
     } else {
         (StatusCode::NOT_FOUND, Json(json!({})))

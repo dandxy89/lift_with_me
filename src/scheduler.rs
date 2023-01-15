@@ -18,7 +18,7 @@ pub async fn task_scheduler(mut lift_job_rx: Receiver<Command>, app_state: AppSt
                                 .await
                                 .entry(loc_stat.id)
                                 .and_modify(|e| {
-                                    *e = (loc_stat.is_busy, loc_stat.floor);
+                                    *e = loc_stat;
                                 });
                         }
                     }
@@ -29,7 +29,7 @@ pub async fn task_scheduler(mut lift_job_rx: Receiver<Command>, app_state: AppSt
                                 .lock()
                                 .await
                                 .entry(loc_stat.id)
-                                .or_insert_with(|| (loc_stat.is_busy, loc_stat.floor));
+                                .or_insert_with(|| loc_stat);
                         }
                     },
                     _ => ()
