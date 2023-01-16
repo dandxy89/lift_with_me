@@ -12,7 +12,6 @@ pub struct Elevator {
 
 impl Elevator {
     #[must_use]
-    /// Initialisation method to create a new Elevator
     pub fn new(id: u8, starting_floor: i16) -> Self {
         Self {
             id,
@@ -23,45 +22,59 @@ impl Elevator {
     }
 
     #[must_use]
-    /// Obtain the current status of the Lift
     pub fn location_status(&self) -> LocationStatus {
         let is_idle = self.movement == Movement::Idle;
         LocationStatus::new(self.id, !is_idle, self.current_floor)
     }
 
-    /// Add a new Movement request to the Elevator work queue
-    pub fn add_request(&mut self, request: Movement) {
+    pub fn new_request(&mut self, request: Movement) {
         self.work.push_back(request);
     }
 
-    /// Tick through time
-    pub fn tick(&mut self) {
-        match self.movement {
-            Movement::ReturnHome if self.current_floor > 0 => {
-                tracing::info!("Lift[{}] is RETURNING HOME (Downwards)", self.id);
-                self.movement = Movement::Down(self.current_floor, 0);
+    fn take_request(&mut self, request: Movement) {
+        let cf = self.current_floor;
+        match request {
+            Movement::Down(rf, _) | Movement::Up(rf, _) if cf < rf && cf != rf => {
+                self.work.push_front(request);
+                self.movement = Movement::Up(cf, rf);
             }
-            Movement::ReturnHome if self.current_floor < 0 => {
+            Movement::Down(rf, _) | Movement::Up(rf, _) if cf > rf && cf != rf => {
+                self.work.push_front(request);
+                self.movement = Movement::Down(cf, rf);
+            }
+            _ => self.movement = request,
+        };
+    }
+
+    pub fn tick(&mut self) {
+        let cf = self.current_floor;
+        match self.movement {
+            Movement::ReturnHome if cf > 0 => {
+                tracing::info!("Lift[{}] is RETURNING HOME (Downwards)", self.id);
+                self.movement = Movement::Down(cf, 0);
+            }
+            Movement::ReturnHome if cf < 0 => {
                 tracing::info!("Lift[{}] is RETURNING HOME (Upwards)", self.id);
-                self.movement = Movement::Up(self.current_floor, 0);
+                self.movement = Movement::Up(cf, 0);
             }
             Movement::ReturnHome => {
+                tracing::info!("Lift[{}] is opening doors on floor [{}]", self.id, cf);
                 self.movement = Movement::OpenDoor;
             }
-            Movement::Down(_, until) if self.current_floor > until => {
-                tracing::info!("Lift[{}] is moving DOWN", self.id);
+            Movement::Down(_, until) if cf > until => {
+                tracing::info!("Lift[{}] is moving DOWN [{}]", self.id, cf);
                 self.current_floor -= 1;
             }
-            Movement::Up(_, until) if self.current_floor < until => {
-                tracing::info!("Lift[{}] is moving UP", self.id);
+            Movement::Up(_, until) if cf < until => {
+                tracing::info!("Lift[{}] is moving UP [{}]", self.id, cf);
                 self.current_floor += 1;
             }
             Movement::Up(..) | Movement::Down(..) => {
-                tracing::info!("Lift[{}] is opening doors", self.id);
+                tracing::info!("Lift[{}] is opening doors on floor [{}]", self.id, cf);
                 self.movement = Movement::OpenDoor;
             }
             Movement::OpenDoor => {
-                tracing::info!("Lift[{}] is closing doors", self.id);
+                tracing::info!("Lift[{}] is closing doors on floor [{}]", self.id, cf);
                 self.movement = Movement::CloseDoor;
             }
             Movement::CloseDoor => {
@@ -69,8 +82,12 @@ impl Elevator {
             }
             Movement::Idle => {
                 if let Some(request) = self.work.pop_front() {
-                    tracing::info!("Lift[{}] is starting request [{request:?}]", self.id);
-                    self.movement = request;
+                    self.take_request(request);
+                    tracing::info!(
+                        "Starting request [{:?}] and [{}] remaining",
+                        self.movement,
+                        self.work.len()
+                    );
                 }
             }
         }

@@ -61,12 +61,9 @@ pub struct Passenger {
     pub to_floor: i16,
 }
 
-/// Creates a new Elevator
-///
-/// # Panics
-pub async fn add_lift(id: u8, cmd_tx: Sender<Command>) {
+pub async fn register_lift(id: u8, cmd_tx: Sender<Command>) {
     let mut lift = Elevator::new(id, 10);
-    lift.add_request(Movement::ReturnHome);
+    lift.new_request(Movement::ReturnHome);
     tracing::info!("Creating new Lift with Id=[{}]", id);
     if let Err(e) = cmd_tx.send(Command::Register(LocationStatus::new(id, true, 10))) {
         tracing::error!("Enable to Register Lift[{id})] due to [{e}]");
@@ -83,8 +80,9 @@ pub async fn add_lift(id: u8, cmd_tx: Sender<Command>) {
                 }
             }
             Command::Lift(lift_id, request) => {
+                tracing::info!("Adding Request {:?} {:?}", id, request);
                 if lift_id == id {
-                    lift.add_request(request);
+                    lift.new_request(request);
                 }
             }
             Command::SendLocation(_) | Command::Register(_) => (),

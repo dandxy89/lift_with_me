@@ -42,8 +42,6 @@ async fn main() {
     // Start the Clock
     let tx_new = tx.clone();
     let clock = tokio::spawn(async move { internal_ticking(tx_new).await });
-    // let rx2 = tx.subscribe();
-    // let _listen = tokio::spawn(async move { display_ticks(rx2).await });
 
     // Define a Router
     let app = Router::new()
